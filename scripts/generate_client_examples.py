@@ -20,7 +20,8 @@ sys.path.insert(0, str(project_root / "src"))
 
 try:
     import torch
-    from PIL import Image
+    from PIL import Image, ImageDraw
+    import numpy as np
     from inference.generator import SDXLImageGenerator
     from utils.data_utils import load_config
 except ImportError as e:
@@ -82,6 +83,93 @@ EXAMPLE_PROMPTS = [
 ]
 
 
+def create_creative_placeholder(width: int, height: int, seed: int = 0) -> Image.Image:
+    """Create a creative placeholder image with gradients and patterns.
+    
+    Args:
+        width: Image width
+        height: Image height
+        seed: Random seed for variation
+    
+    Returns:
+        PIL Image with creative gradient pattern
+    """
+    # Use seed to vary the pattern
+    np.random.seed(seed)
+    
+    # Create coordinate arrays
+    x = np.linspace(0, width, width)
+    y = np.linspace(0, height, height)
+    X, Y = np.meshgrid(x, y)
+    
+    # Center point
+    center_x, center_y = width / 2, height / 2
+    max_dist = np.sqrt(center_x**2 + center_y**2)
+    
+    # Calculate distance from center
+    dist = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+    ratio = np.clip(dist / max_dist, 0, 1)
+    
+    # Vary colors based on seed
+    color_schemes = [
+        [(200, 150, 100), (100, 150, 200), (150, 200, 150)],
+        [(180, 120, 160), (120, 160, 180), (160, 180, 120)],
+        [(220, 170, 130), (130, 170, 220), (170, 220, 170)],
+        [(190, 140, 170), (140, 170, 190), (170, 190, 140)],
+        [(210, 160, 110), (110, 160, 210), (160, 210, 160)],
+        [(170, 130, 150), (130, 150, 170), (150, 170, 130)],
+    ]
+    colors = color_schemes[seed % len(color_schemes)]
+    
+    # Create gradient
+    r = (colors[0][0] * (1 - ratio) + colors[1][0] * ratio).astype(np.uint8)
+    g = (colors[0][1] * (1 - ratio) + colors[1][1] * ratio).astype(np.uint8)
+    b = (colors[0][2] * (1 - ratio) + colors[1][2] * ratio).astype(np.uint8)
+    
+    # Add subtle noise for texture
+    noise_scale = 8
+    r = np.clip(r.astype(np.int16) + np.random.randint(-noise_scale, noise_scale, r.shape), 0, 255).astype(np.uint8)
+    g = np.clip(g.astype(np.int16) + np.random.randint(-noise_scale, noise_scale, g.shape), 0, 255).astype(np.uint8)
+    b = np.clip(b.astype(np.int16) + np.random.randint(-noise_scale, noise_scale, b.shape), 0, 255).astype(np.uint8)
+    
+    # Stack channels
+    img_array = np.stack([r, g, b], axis=-1)
+    
+    # Convert to PIL Image
+    img = Image.fromarray(img_array, 'RGB')
+    
+    # Add geometric patterns overlay
+    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    
+    # Draw subtle radial lines
+    line_color = (*colors[2], 25)  # Semi-transparent
+    num_lines = 12
+    for i in range(num_lines):
+        angle = (i / num_lines) * 2 * np.pi
+        x1 = center_x + max_dist * 0.2 * np.cos(angle)
+        y1 = center_y + max_dist * 0.2 * np.sin(angle)
+        x2 = center_x + max_dist * 0.95 * np.cos(angle)
+        y2 = center_y + max_dist * 0.95 * np.sin(angle)
+        overlay_draw.line([(x1, y1), (x2, y2)], fill=line_color, width=1)
+    
+    # Draw concentric circles
+    for radius in [0.3, 0.5, 0.7]:
+        circle_color = (*colors[2], 15)  # Very subtle
+        bbox = [
+            center_x - max_dist * radius,
+            center_y - max_dist * radius,
+            center_x + max_dist * radius,
+            center_y + max_dist * radius
+        ]
+        overlay_draw.ellipse(bbox, outline=circle_color, width=1)
+    
+    # Composite overlay
+    img = Image.alpha_composite(img.convert('RGBA'), overlay).convert('RGB')
+    
+    return img
+
+
 def _generate_single_image(args: Tuple) -> Tuple[str, bool, float, str]:
     """Worker function to generate a single image. Used for multiprocessing.
     
@@ -129,8 +217,12 @@ def _generate_single_image(args: Tuple) -> Tuple[str, bool, float, str]:
             pose_idx = (i - 1) % len(pose_images)
             pose_image_path = str(Path(pose_images[pose_idx]))
         else:
-            # Create placeholder image
-            placeholder = Image.new('RGB', (gen_config.get("width", 1024), gen_config.get("height", 1024)), color=(128, 128, 128))
+            # Create creative placeholder image with gradient patterns
+            placeholder = create_creative_placeholder(
+                gen_config.get("width", 1024),
+                gen_config.get("height", 1024),
+                seed=i  # Use index for variation
+            )
             placeholder_path = output_dir / f"_placeholder_{i}.png"
             placeholder.save(placeholder_path)
             pose_image_path = str(placeholder_path)
