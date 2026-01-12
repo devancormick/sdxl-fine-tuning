@@ -136,17 +136,56 @@ def enhance_prompt_with_references(
     character_image: Optional[Image.Image] = None,
     attire_image: Optional[Image.Image] = None,
     background_image: Optional[Image.Image] = None,
+    reference_weight: float = 0.5,
+    use_detailed_descriptions: bool = True,
 ) -> str:
-    """Enhance a prompt with reference image descriptions."""
+    """
+    Enhance a prompt with reference image descriptions.
+    
+    This function creates detailed prompt enhancements based on reference images.
+    For better conditioning, consider using IP-Adapter (experimental for SDXL).
+    
+    Args:
+        base_prompt: Base text prompt
+        character_image: Character reference image
+        attire_image: Attire reference image
+        background_image: Background reference image
+        reference_weight: Weight for reference descriptions (0.0-1.0)
+        use_detailed_descriptions: Use detailed descriptions vs simple tags
+    
+    Returns:
+        Enhanced prompt string
+    """
     prompt_parts = [base_prompt]
     
-    if character_image:
-        prompt_parts.append("matching character style and features")
-    
-    if attire_image:
-        prompt_parts.append("matching attire and clothing style")
-    
-    if background_image:
-        prompt_parts.append("matching background and setting")
+    if use_detailed_descriptions:
+        # Detailed descriptions for better adherence
+        if character_image:
+            if reference_weight > 0.7:
+                prompt_parts.append("exact character match, identical facial features, same appearance")
+            else:
+                prompt_parts.append("matching character style, similar facial features, consistent appearance")
+        
+        if attire_image:
+            if reference_weight > 0.7:
+                prompt_parts.append("exact clothing match, identical attire, same outfit style")
+            else:
+                prompt_parts.append("matching attire style, similar clothing, consistent fashion")
+        
+        if background_image:
+            if reference_weight > 0.7:
+                prompt_parts.append("exact background match, identical setting, same environment")
+            else:
+                prompt_parts.append("matching background style, similar setting, consistent environment")
+    else:
+        # Simple tag-based descriptions
+        if character_image:
+            prompt_parts.append("matching character style and features")
+        
+        if attire_image:
+            prompt_parts.append("matching attire and clothing style")
+        
+        if background_image:
+            prompt_parts.append("matching background and setting")
     
     return ", ".join(prompt_parts)
