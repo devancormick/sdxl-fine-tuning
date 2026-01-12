@@ -32,6 +32,11 @@ def main():
     parser.add_argument("--seed", type=int, help="Random seed")
     parser.add_argument("--base-model", type=str, help="Override base model path")
     parser.add_argument("--lora-weights", type=str, help="Override LoRA weights path")
+    parser.add_argument("--fast-mode", action="store_true", help="Enable fast mode (15 steps, optimized for 5-8s generation)")
+    parser.add_argument("--model-config", type=str, default="config/model_config.yaml", help="Model configuration file")
+    parser.add_argument("--preferred-model", type=str, choices=["endgame", "gonzalomo", "sdxl_base"], 
+                       help="Preferred base model (endgame, gonzalomo, or sdxl_base)")
+    parser.add_argument("--use-ip-adapter", action="store_true", help="Enable IP-Adapter for better character/attire conditioning")
     
     args = parser.parse_args()
     
@@ -40,16 +45,19 @@ def main():
     model_config = config.get("model", {})
     gen_config = config.get("generation", {})
     
-    # Initialize generator
+    # Initialize generator with model selection support
     print("Initializing image generator...")
     generator = SDXLImageGenerator(
-        base_model_path=args.base_model or model_config.get("base_model", "stabilityai/stable-diffusion-xl-base-1.0"),
-        controlnet_model_path=model_config.get("controlnet_model", "thibaud/controlnet-openpose-sdxl-1.0"),
+        base_model_path=args.base_model or model_config.get("base_model"),
+        controlnet_model_path=model_config.get("controlnet_model"),
         lora_weights_path=args.lora_weights or model_config.get("lora_weights"),
         vae_path=model_config.get("vae_model"),
         device=config.get("device", "cuda"),
         dtype=torch.float16,
         enable_optimizations=True,
+        model_config_path=args.model_config if Path(args.model_config).exists() else None,
+        preferred_model=args.preferred_model,
+        use_ip_adapter=args.use_ip_adapter,
     )
     
     # Generate image
