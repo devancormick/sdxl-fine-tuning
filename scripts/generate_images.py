@@ -67,6 +67,7 @@ def main():
         guidance_scale=args.guidance_scale or gen_config.get("guidance_scale", 7.5),
         controlnet_conditioning_scale=gen_config.get("controlnet_conditioning_scale", 1.0),
         seed=args.seed,
+        fast_mode=args.fast_mode,
     )
     
     # Save image

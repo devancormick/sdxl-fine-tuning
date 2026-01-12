@@ -114,17 +114,26 @@ class SDXLImageGenerator:
         negative_prompt: str = "blurry, low quality, distorted, bad anatomy",
         width: int = 1024,
         height: int = 1024,
-        num_inference_steps: int = 30,
+        num_inference_steps: int = 20,  # Reduced default for faster generation
         guidance_scale: float = 7.5,
         controlnet_conditioning_scale: float = 1.0,
         seed: Optional[int] = None,
+        fast_mode: bool = False,
     ) -> Tuple[Image.Image, float]:
         """
         Generate image from prompt and pose.
         
+        Args:
+            fast_mode: If True, uses optimized settings for 5-8s generation (15 steps)
+        
         Returns:
             Generated image and generation time in seconds
         """
+        # Apply fast mode optimizations
+        if fast_mode:
+            num_inference_steps = 15
+            guidance_scale = 7.0
+        
         start_time = time.time()
         
         # Load pose image if path provided

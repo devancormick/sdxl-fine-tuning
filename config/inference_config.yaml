@@ -11,10 +11,16 @@ model:
 generation:
   width: 1024
   height: 1024
-  num_inference_steps: 30
+  num_inference_steps: 20  # Reduced for 5-8s generation time (was 30)
   guidance_scale: 7.5
   controlnet_conditioning_scale: 1.0
   negative_prompt: "blurry, low quality, distorted, bad anatomy"
+  
+# Fast generation mode (5-8 seconds target)
+fast_mode:
+  num_inference_steps: 15  # Fast mode: 15 steps
+  guidance_scale: 7.0
+  use_torch_compile: true
   
 # Performance optimization
 optimization:
