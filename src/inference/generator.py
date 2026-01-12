@@ -36,6 +36,7 @@ class SDXLImageGenerator:
         device: str = "cuda",
         dtype: torch.dtype = torch.float16,
         enable_optimizations: bool = True,
+        extract_pose: bool = True,
     ):
         self.device = device
         self.dtype = dtype
@@ -140,8 +141,12 @@ class SDXLImageGenerator:
         if isinstance(pose_image, str):
             pose_image = load_image(pose_image)
         
-        # Resize pose image to target resolution
+        # Extract pose keypoints if image provided
         if pose_image:
+            # Extract OpenPose keypoints for better ControlNet conditioning
+            if self.extract_pose:
+                pose_image = extract_pose_keypoints(pose_image, use_openpose=True)
+            # Resize pose image to target resolution
             pose_image = resize_image(pose_image, (width, height))
         
         # Set seed for reproducibility

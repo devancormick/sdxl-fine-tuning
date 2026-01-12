@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from PIL import Image
 import cv2
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 
 def pil_to_tensor(image: Image.Image) -> torch.Tensor:
@@ -46,12 +46,53 @@ def preprocess_image_for_controlnet(image: Image.Image, target_size: Tuple[int, 
     return image_tensor.unsqueeze(0)  # Add batch dimension
 
 
-def extract_pose_keypoints(image: Image.Image) -> np.ndarray:
-    """Extract pose keypoints from image using OpenPose-like preprocessing."""
-    # This is a placeholder - in production, you'd use actual OpenPose or MediaPipe
-    # For now, we'll just return the image as-is for ControlNet
-    image_np = np.array(image.convert("RGB"))
-    return image_np
+def extract_pose_keypoints(image: Image.Image, use_openpose: bool = True) -> Image.Image:
+    """
+    Extract pose keypoints from image using OpenPose preprocessing.
+    
+    Args:
+        image: Input image
+        use_openpose: If True, uses controlnet-aux OpenposeDetector, else returns image
+    
+    Returns:
+        Pose keypoints image (OpenPose format) or original image if openpose not available
+    """
+    if not use_openpose:
+        return image
+    
+    try:
+        from controlnet_aux import OpenposeDetector
+        
+        # Convert PIL to numpy for processing
+        image_np = np.array(image.convert("RGB"))
+        
+        # Initialize OpenPose detector
+        openpose = OpenposeDetector.from_pretrained("lllyasviel/Annotators")
+        
+        # Extract pose keypoints
+        pose_image = openpose(image)
+        
+        # Ensure we return a PIL Image
+        if isinstance(pose_image, np.ndarray):
+            pose_image = Image.fromarray(pose_image)
+        elif not isinstance(pose_image, Image.Image):
+            pose_image = Image.fromarray(np.array(pose_image))
+        
+        return pose_image
+    
+    except ImportError:
+        # Fallback: return original image if controlnet-aux not available
+        import warnings
+        warnings.warn(
+            "controlnet-aux not available. Install with: pip install controlnet-aux. "
+            "Using original image instead of pose extraction."
+        )
+        return image
+    except Exception as e:
+        # On any error, return original image
+        import warnings
+        warnings.warn(f"Error extracting pose: {e}. Using original image.")
+        return image
 
 
 def blend_reference_images(images: list, blend_weights: Optional[list] = None) -> Image.Image:
