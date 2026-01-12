@@ -1,0 +1,20 @@
+# Model Configuration
+
+# Available base models
+base_models:
+  sdxl_base: "stabilityai/stable-diffusion-xl-base-1.0"
+  sdxl_refiner: "stabilityai/stable-diffusion-xl-refiner-1.0"
+  gonzalomo: "gonzalomo/gonzalomo-xl"  # If available
+  endgame: "endgame/SDXL-model"  # If available
+
+# ControlNet models
+controlnet_models:
+  openpose: "thibaud/controlnet-openpose-sdxl-1.0"
+  canny: "diffusers/controlnet-canny-sdxl-1.0"
+  depth: "diffusers/controlnet-depth-sdxl-1.0"
+
+# VAE
+vae_models:
+  default: "madebyollin/sdxl-vae-fp16-fix"
+  fp32: "stabilityai/sdxl-vae"
+

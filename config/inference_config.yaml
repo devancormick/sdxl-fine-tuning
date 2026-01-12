@@ -1,0 +1,30 @@
+# Inference Configuration
+
+# Model paths
+model:
+  base_model: "./models/base_models/stable-diffusion-xl-base-1.0"
+  lora_weights: "./models/lora_checkpoints/checkpoint-2000"
+  controlnet_model: "./models/controlnet-openpose-sdxl-1.0"
+  vae_model: "./models/vae/sdxl-vae-fp16-fix"
+
+# Generation settings
+generation:
+  width: 1024
+  height: 1024
+  num_inference_steps: 30
+  guidance_scale: 7.5
+  controlnet_conditioning_scale: 1.0
+  negative_prompt: "blurry, low quality, distorted, bad anatomy"
+  
+# Performance optimization
+optimization:
+  use_xformers: true
+  use_torch_compile: false  # Can enable for faster inference if PyTorch 2.0+
+  enable_attention_slicing: true
+  enable_vae_slicing: true
+  enable_vae_tiling: false
+  enable_cpu_offload: false  # Set to true if GPU memory is limited
+  
+# Device
+device: "cuda"  # or "cpu"
+

@@ -1,0 +1,49 @@
+# Training Configuration for SDXL LoRA Fine-tuning
+
+# Model settings
+model:
+  base_model: "stabilityai/stable-diffusion-xl-base-1.0"  # or "gonzalomo/gonzalomo-xl"
+  vae_model: "madebyollin/sdxl-vae-fp16-fix"
+  controlnet_model: "thibaud/controlnet-openpose-sdxl-1.0"
+  
+# LoRA settings
+lora:
+  rank: 32
+  alpha: 16
+  target_modules: ["to_k", "to_q", "to_v", "to_out.0"]
+  dropout: 0.1
+  
+# Training parameters
+training:
+  output_dir: "./models/lora_checkpoints"
+  resolution: 1024
+  train_batch_size: 1
+  gradient_accumulation_steps: 4
+  learning_rate: 1e-4
+  lr_scheduler: "constant"
+  lr_warmup_steps: 100
+  num_train_epochs: 10
+  max_train_steps: 2000
+  gradient_checkpointing: true
+  mixed_precision: "fp16"
+  save_steps: 500
+  save_total_limit: 3
+  logging_steps: 10
+  
+# Data settings
+data:
+  train_data_dir: "./data"
+  validation_split: 0.1
+  caption_column: "text"
+  image_column: "image_path"
+  
+# Optimizer
+optimizer:
+  type: "adamw8bit"
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  epsilon: 1e-8
+
+# Seed for reproducibility
+seed: 42
+
