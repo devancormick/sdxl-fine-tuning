@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  sdxl-api:
+    build: .
+    container_name: sdxl-fine-tuning-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      # Mount models directory (download models on host first)
+      - ./models:/app/models
+      # Mount data directory
+      - ./data:/app/data
+      # Mount outputs directory
+      - ./outputs:/app/outputs
+      # Mount logs directory
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    command: python scripts/run_api.py
+
