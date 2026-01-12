@@ -137,14 +137,76 @@ async def generate_image(
 
 
 @app.post("/generate/batch")
-async def generate_batch(requests: list[GenerationRequest]):
+async def generate_batch(
+    requests: list[GenerationRequest],
+    max_batch_size: int = 4,
+):
     """
     Generate multiple images in batch.
     
-    Note: This is a placeholder. Implement batching based on GPU memory.
+    Args:
+        requests: List of generation requests
+        max_batch_size: Maximum number of images to process in parallel (based on GPU memory)
+    
+    Returns:
+        List of generated images with metadata
     """
-    # TODO: Implement batch processing
-    raise HTTPException(status_code=501, detail="Batch processing not yet implemented")
+    try:
+        gen = get_generator()
+        
+        results = []
+        
+        # Process in batches to manage GPU memory
+        for i in range(0, len(requests), max_batch_size):
+            batch = requests[i:i + max_batch_size]
+            batch_results = []
+            
+            for req in batch:
+                try:
+                    # Generate image
+                    image, gen_time = gen.generate(
+                        prompt=req.prompt,
+                        negative_prompt=req.negative_prompt,
+                        width=req.width,
+                        height=req.height,
+                        num_inference_steps=req.num_inference_steps,
+                        guidance_scale=req.guidance_scale,
+                        seed=req.seed,
+                    )
+                    
+                    # Save to temporary file
+                    output_dir = project_root / "outputs" / "api" / "batch"
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    import uuid
+                    output_path = output_dir / f"{uuid.uuid4()}.png"
+                    image.save(output_path)
+                    
+                    batch_results.append({
+                        "status": "success",
+                        "image_path": str(output_path.relative_to(project_root)),
+                        "generation_time": gen_time,
+                        "prompt": req.prompt,
+                    })
+                
+                except Exception as e:
+                    batch_results.append({
+                        "status": "error",
+                        "error": str(e),
+                        "prompt": req.prompt,
+                    })
+            
+            results.extend(batch_results)
+        
+        return {
+            "total": len(requests),
+            "successful": sum(1 for r in results if r["status"] == "success"),
+            "failed": sum(1 for r in results if r["status"] == "error"),
+            "results": results,
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def main():
