@@ -20,6 +20,10 @@ This project provides a complete solution for fine-tuning SDXL-based models (lik
 - ✅ Video generation from image sequences
 - ✅ 1024x1024 resolution support
 - ✅ Scalable pose dataset (supports 150+ poses, easily expandable)
+- ✅ **Model selection** (Endgame, Gonzalomo, SDXL Base) with automatic fallback
+- ✅ **Model verification** with HuggingFace Hub integration
+- ✅ **Enhanced prompt engineering** for better character/attire conditioning
+- ✅ **Performance validation** script to verify 5-8s generation time
 - ✅ Batch processing API endpoint
 - ✅ Training data validation and preparation tools
 - ✅ Comprehensive logging system
@@ -95,6 +99,27 @@ python scripts/generate_images.py \
     --output outputs/images/
 ```
 
+With model selection (Endgame/Gonzalomo):
+
+```bash
+python scripts/generate_images.py \
+    --prompt "a professional portrait" \
+    --pose data/poses/pose_001.png \
+    --preferred-model endgame \
+    --fast-mode \
+    --output outputs/images/
+```
+
+Validate performance (5-8s generation time):
+
+```bash
+python scripts/validate_performance.py \
+    --config config/inference_config.yaml \
+    --runs 5 \
+    --target-min 5.0 \
+    --target-max 8.0
+```
+
 ### Video Generation
 
 Generate videos from image sequences:
@@ -111,15 +136,38 @@ python scripts/generate_video.py \
 Key configuration files:
 - `config/training_config.yaml` - Training hyperparameters
 - `config/inference_config.yaml` - Inference settings
-- `config/model_config.yaml` - Model architecture settings
+- `config/model_config.yaml` - Model architecture settings (Endgame, Gonzalomo, SDXL Base)
+
+See [MODEL_SELECTION.md](MODEL_SELECTION.md) for detailed information about:
+- Model selection and verification
+- Adding custom models
+- ControlNet training approach
+- Performance considerations
 
 ## Production Deployment
 
 The inference pipeline is optimized for production use:
 - Batch processing support
 - GPU memory optimization
-- Fast generation times (5-8 seconds)
+- Fast generation times (5-8 seconds with fast-mode)
+- Model verification and automatic fallback
 - REST API option (see `src/api/`)
+- Performance validation tools
+
+### Performance Validation
+
+Verify your system meets the 5-8 second generation target:
+
+```bash
+python scripts/validate_performance.py
+```
+
+This will:
+- Check system resources (CUDA, memory, xformers)
+- Run multiple generation tests
+- Calculate statistics (mean, median, min, max)
+- Validate against target range (5-8 seconds)
+- Provide performance recommendations
 
 ## License
 
