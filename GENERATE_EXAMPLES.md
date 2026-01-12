@@ -76,7 +76,11 @@ The script uses `config/inference_config.yaml` which has been updated to use Hug
   - GPU mode: Uses up to 2 workers (memory limited)
 - **CPU mode**: Much slower (30-60+ seconds per image per worker), but parallel processing speeds it up
 - **GPU mode**: Fast generation (5-8 seconds per image with fast-mode)
-- **No pose images**: Script creates placeholder images automatically
+- **Pose images**: 
+  - Script fetches real-world pose images from online services (Pexels API or Lorem Picsum)
+  - For best results with Pexels API, set `PEXELS_API_KEY` environment variable (free API key from https://www.pexels.com/api/)
+  - Falls back to creative gradient placeholders if API fetch fails
+  - Images are cached locally for faster subsequent runs
 - **Memory usage**: Each worker loads its own model instance (uses more RAM but faster)
 
 ## Output

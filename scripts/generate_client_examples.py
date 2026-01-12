@@ -8,11 +8,13 @@ to demonstrate the capabilities of the SDXL fine-tuning project.
 import sys
 import argparse
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import time
 import os
+import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
+import hashlib
 
 # Add src to Python path
 project_root = Path(__file__).parent.parent
@@ -22,6 +24,7 @@ try:
     import torch
     from PIL import Image, ImageDraw
     import numpy as np
+    import requests
     from inference.generator import SDXLImageGenerator
     from utils.data_utils import load_config
 except ImportError as e:
@@ -81,6 +84,118 @@ EXAMPLE_PROMPTS = [
         "description": "Minimalist clean portrait"
     },
 ]
+
+
+def fetch_pose_image_from_api(
+    width: int = 1024,
+    height: int = 1024,
+    cache_dir: Optional[Path] = None,
+    seed: int = 0
+) -> Optional[Image.Image]:
+    """Fetch a real-world pose/portrait image from online services.
+    
+    Uses Pexels API (free tier) or other free services to get portrait/pose images.
+    Requires PEXELS_API_KEY environment variable for Pexels API.
+    Falls back to creative placeholder if API fetch fails.
+    
+    Args:
+        width: Desired image width
+        height: Desired image height
+        cache_dir: Directory to cache downloaded images
+        seed: Random seed for variation
+    
+    Returns:
+        PIL Image or None if fetch fails
+    """
+    if cache_dir is None:
+        cache_dir = Path.home() / ".cache" / "sdxl_fine_tuning" / "pose_images"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Search queries for pose/portrait images
+    queries = [
+        "professional portrait",
+        "person standing",
+        "portrait photography",
+        "model pose",
+        "full body portrait",
+        "studio portrait",
+        "fashion portrait",
+        "business portrait"
+    ]
+    
+    query = queries[seed % len(queries)]
+    cache_key = hashlib.md5(f"{query}_{width}_{height}_{seed}".encode()).hexdigest()
+    cache_file = cache_dir / f"{cache_key}.jpg"
+    
+    # Check cache first
+    if cache_file.exists():
+        try:
+            img = Image.open(cache_file)
+            img = img.resize((width, height), Image.LANCZOS)
+            return img
+        except Exception:
+            pass
+    
+    # Try Pexels API (free tier, requires API key)
+    pexels_api_key = os.environ.get('PEXELS_API_KEY')
+    if pexels_api_key:
+        try:
+            # Pexels API endpoint
+            url = f"https://api.pexels.com/v1/search"
+            headers = {"Authorization": pexels_api_key}
+            params = {
+                "query": query,
+                "per_page": 1,
+                "page": (seed % 10) + 1  # Vary pages for diversity
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('photos') and len(data['photos']) > 0:
+                    photo_url = data['photos'][0]['src']['original']
+                    
+                    # Download the image
+                    img_response = requests.get(photo_url, stream=True, timeout=15)
+                    if img_response.status_code == 200:
+                        img = Image.open(img_response.raw)
+                        img = img.convert('RGB')
+                        
+                        # Resize to exact dimensions
+                        img = img.resize((width, height), Image.LANCZOS)
+                        
+                        # Cache the image
+                        try:
+                            img.save(cache_file, 'JPEG', quality=90)
+                        except Exception:
+                            pass
+                        
+                        return img
+        except Exception:
+            pass
+    
+    # Try Lorem Picsum (free, no auth required) as fallback
+    try:
+        # Use seed for variation
+        image_id = (seed % 1000) + 1
+        url = f"https://picsum.photos/{width}/{height}?random={image_id}"
+        response = requests.get(url, timeout=10, stream=True)
+        if response.status_code == 200:
+            img = Image.open(response.raw)
+            img = img.convert('RGB')
+            img = img.resize((width, height), Image.LANCZOS)
+            
+            # Cache the image
+            try:
+                img.save(cache_file, 'JPEG', quality=90)
+            except Exception:
+                pass
+            
+            return img
+    except Exception:
+        pass
+    
+    return None
 
 
 def create_creative_placeholder(width: int, height: int, seed: int = 0) -> Image.Image:
@@ -217,15 +332,30 @@ def _generate_single_image(args: Tuple) -> Tuple[str, bool, float, str]:
             pose_idx = (i - 1) % len(pose_images)
             pose_image_path = str(Path(pose_images[pose_idx]))
         else:
-            # Create creative placeholder image with gradient patterns
-            placeholder = create_creative_placeholder(
-                gen_config.get("width", 1024),
-                gen_config.get("height", 1024),
+            # Try to fetch real-world pose image from online services
+            cache_dir = Path(output_dir.parent) / ".pose_cache" if output_dir else None
+            pose_img = fetch_pose_image_from_api(
+                width=gen_config.get("width", 1024),
+                height=gen_config.get("height", 1024),
+                cache_dir=cache_dir,
                 seed=i  # Use index for variation
             )
-            placeholder_path = output_dir / f"_placeholder_{i}.png"
-            placeholder.save(placeholder_path)
-            pose_image_path = str(placeholder_path)
+            
+            if pose_img is not None:
+                # Use real-world image
+                placeholder_path = output_dir / f"_placeholder_{i}.jpg"
+                pose_img.save(placeholder_path, 'JPEG', quality=90)
+                pose_image_path = str(placeholder_path)
+            else:
+                # Fallback to creative placeholder if API fetch fails
+                placeholder = create_creative_placeholder(
+                    gen_config.get("width", 1024),
+                    gen_config.get("height", 1024),
+                    seed=i  # Use index for variation
+                )
+                placeholder_path = output_dir / f"_placeholder_{i}.png"
+                placeholder.save(placeholder_path)
+                pose_image_path = str(placeholder_path)
         
         # Generate image
         start_time = time.time()
