@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Models and checkpoints
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+
+# Data
+data/poses/*
+data/attire/*
+data/characters/*
+data/backgrounds/*
+!data/.gitkeep
+
+# Outputs
+outputs/
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.avi
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+wandb/
+tensorboard/
+
+# Environment
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# HuggingFace cache
+.cache/
+.huggingface/
+
