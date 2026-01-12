@@ -1,11 +1,11 @@
 # Inference Configuration
 
-# Model paths
+# Model paths (use HuggingFace model IDs for auto-download)
 model:
-  base_model: "./models/base_models/stable-diffusion-xl-base-1.0"
-  lora_weights: "./models/lora_checkpoints/checkpoint-2000"
-  controlnet_model: "./models/controlnet-openpose-sdxl-1.0"
-  vae_model: "./models/vae/sdxl-vae-fp16-fix"
+  base_model: "stabilityai/stable-diffusion-xl-base-1.0"
+  lora_weights: null  # Optional - set to local path if you have trained LoRA weights
+  controlnet_model: "thibaud/controlnet-openpose-sdxl-1.0"
+  vae_model: "madebyollin/sdxl-vae-fp16-fix"
 
 # Generation settings
 generation:
