@@ -5,9 +5,13 @@ import argparse
 from pathlib import Path
 from huggingface_hub import snapshot_download
 import sys
+import yaml
 
-sys.path.append(str(Path(__file__).parent.parent / "src"))
-from utils.data_utils import load_config
+
+def load_config(config_path: str) -> dict:
+    """Load YAML configuration file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
 
 def download_model(model_id: str, local_dir: Path, revision: str = "main"):

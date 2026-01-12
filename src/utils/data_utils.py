@@ -2,8 +2,9 @@
 
 import os
 import json
+import random
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
@@ -15,16 +16,27 @@ class MultiImageDataset(Dataset):
     def __init__(
         self,
         data_dir: str,
+        caption_file: Optional[str] = None,
         pose_dir: str = "poses",
         attire_dir: str = "attire",
         character_dir: str = "characters",
         background_dir: str = "backgrounds",
         resolution: int = 1024,
-        transform=None
+        transform=None,
+        prompt_template: str = "a professional portrait, high quality, detailed"
     ):
         self.data_dir = Path(data_dir)
         self.resolution = resolution
         self.transform = transform
+        self.prompt_template = prompt_template
+        
+        # Load captions if provided
+        self.captions = {}
+        if caption_file:
+            caption_path = self.data_dir / caption_file
+            if caption_path.exists():
+                with open(caption_path, 'r') as f:
+                    self.captions = json.load(f)
         
         # Load image paths
         self.pose_paths = sorted(list((self.data_dir / pose_dir).glob("*.png")) + 
@@ -52,11 +64,24 @@ class MultiImageDataset(Dataset):
         )
         
         for i in range(max_samples):
+            pose_path = self.pose_paths[i % len(self.pose_paths)] if self.pose_paths else None
+            caption = None
+            
+            # Try to get caption for pose image
+            if pose_path and self.captions:
+                rel_path = str(pose_path.relative_to(self.data_dir))
+                caption = self.captions.get(rel_path)
+            
+            # Use default prompt template if no caption
+            if not caption:
+                caption = self.prompt_template
+            
             sample = {
-                "pose": self.pose_paths[i % len(self.pose_paths)] if self.pose_paths else None,
+                "pose": pose_path,
                 "attire": self.attire_paths[i % len(self.attire_paths)] if self.attire_paths else None,
                 "character": self.character_paths[i % len(self.character_paths)] if self.character_paths else None,
                 "background": self.background_paths[i % len(self.background_paths)] if self.background_paths else None,
+                "caption": caption,
             }
             samples.append(sample)
         
@@ -68,16 +93,16 @@ class MultiImageDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.samples[idx]
         
-        images = {}
-        for key, path in sample.items():
-            if path and path.exists():
-                img = Image.open(path).convert("RGB")
-                img = img.resize((self.resolution, self.resolution), Image.LANCZOS)
-                if self.transform:
-                    img = self.transform(img)
-                images[key] = img
+        # Load target image (use pose as target if available)
+        target_image = None
+        if sample["pose"] and sample["pose"].exists():
+            target_image = Image.open(sample["pose"]).convert("RGB")
+            target_image = target_image.resize((self.resolution, self.resolution), Image.LANCZOS)
         
-        return images
+        return {
+            "pixel_values": target_image,
+            "prompt": sample["caption"],
+        }
 
 
 def load_config(config_path: str) -> dict:
