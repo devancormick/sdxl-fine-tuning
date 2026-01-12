@@ -348,13 +348,42 @@ def main():
                 if global_step % config["training"]["save_steps"] == 0:
                     if accelerator.is_local_main_process:
                         checkpoint_dir = output_dir / f"checkpoint-{global_step}"
+                        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        # Save accelerator state
                         accelerator.save_state(str(checkpoint_dir))
                         
                         # Save LoRA weights
                         unwrapped_unet = accelerator.unwrap_model(unet)
                         unwrapped_unet.save_pretrained(str(checkpoint_dir / "lora_weights"))
                         lora_config.save_pretrained(str(checkpoint_dir / "lora_config"))
+                        
+                        # Save checkpoint metadata
+                        import json
+                        metadata = {
+                            "global_step": global_step,
+                            "epoch": epoch,
+                            "loss": avg_loss if train_loss > 0 else None,
+                            "learning_rate": lr_scheduler.get_last_lr()[0],
+                        }
+                        with open(checkpoint_dir / "checkpoint_metadata.json", "w") as f:
+                            json.dump(metadata, f, indent=2)
+                        
                         logger.info(f"Saved checkpoint to {checkpoint_dir}")
+                        
+                        # Clean up old checkpoints if save_total_limit is set
+                        save_total_limit = config["training"].get("save_total_limit")
+                        if save_total_limit and save_total_limit > 0:
+                            checkpoints = sorted(
+                                [d for d in output_dir.iterdir() if d.is_dir() and d.name.startswith("checkpoint-")],
+                                key=lambda x: int(x.name.split("-")[1]),
+                                reverse=True
+                            )
+                            if len(checkpoints) > save_total_limit:
+                                for old_checkpoint in checkpoints[save_total_limit:]:
+                                    import shutil
+                                    shutil.rmtree(old_checkpoint)
+                                    logger.info(f"Removed old checkpoint: {old_checkpoint.name}")
             
             if global_step >= max_train_steps:
                 break
