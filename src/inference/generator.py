@@ -17,7 +17,11 @@ from peft import PeftModel
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.image_utils import preprocess_image_for_controlnet, resize_image
+from utils.image_utils import (
+    preprocess_image_for_controlnet,
+    resize_image,
+    enhance_prompt_with_references,
+)
 
 
 class SDXLImageGenerator:
@@ -161,28 +165,48 @@ class SDXLImageGenerator:
         attire_image: Optional[Union[str, Image.Image]] = None,
         character_image: Optional[Union[str, Image.Image]] = None,
         background_image: Optional[Union[str, Image.Image]] = None,
+        reference_weight: float = 0.5,
         **kwargs
     ) -> Tuple[Image.Image, float]:
         """
         Generate image with multiple input references.
         
-        Note: This is a simplified version. In production, you might want to:
-        - Use IP-Adapter for character/attire conditioning
-        - Use multiple ControlNets
-        - Blend reference images in the prompt
+        Uses ControlNet for pose control and enhanced prompt engineering for
+        character, attire, and background references.
+        
+        Args:
+            prompt: Base text prompt
+            pose_image: Pose reference image (used with ControlNet)
+            attire_image: Attire reference image (used to enhance prompt)
+            character_image: Character reference image (used to enhance prompt)
+            background_image: Background reference image (used to enhance prompt)
+            reference_weight: Weight for reference-based prompt enhancement (0.0-1.0)
+            **kwargs: Additional arguments passed to generate()
+        
+        Returns:
+            Generated image and generation time
         """
-        # For now, we'll use pose for ControlNet and incorporate others in the prompt
-        # You can enhance this with IP-Adapter or other methods
+        # Load images if paths provided
+        char_img = None
+        attr_img = None
+        bg_img = None
         
-        # Enhance prompt with references
-        enhanced_prompt = prompt
         if character_image:
-            enhanced_prompt += ", character reference"
+            char_img = load_image(character_image) if isinstance(character_image, str) else character_image
         if attire_image:
-            enhanced_prompt += ", attire reference"
+            attr_img = load_image(attire_image) if isinstance(attire_image, str) else attire_image
         if background_image:
-            enhanced_prompt += ", background reference"
+            bg_img = load_image(background_image) if isinstance(background_image, str) else background_image
         
+        # Enhance prompt with reference descriptions
+        enhanced_prompt = enhance_prompt_with_references(
+            prompt,
+            character_image=char_img,
+            attire_image=attr_img,
+            background_image=bg_img,
+        )
+        
+        # Use pose for ControlNet (primary control)
         return self.generate(
             prompt=enhanced_prompt,
             pose_image=pose_image,

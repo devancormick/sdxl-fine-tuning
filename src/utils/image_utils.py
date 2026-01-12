@@ -53,3 +53,59 @@ def extract_pose_keypoints(image: Image.Image) -> np.ndarray:
     image_np = np.array(image.convert("RGB"))
     return image_np
 
+
+def blend_reference_images(images: list, blend_weights: Optional[list] = None) -> Image.Image:
+    """Blend multiple reference images together with optional weights."""
+    if not images:
+        raise ValueError("No images provided")
+    
+    if len(images) == 1:
+        return images[0]
+    
+    # Ensure all images are the same size
+    target_size = images[0].size
+    images_resized = []
+    for img in images:
+        if isinstance(img, str):
+            from pathlib import Path
+            img = Image.open(img)
+        if img.size != target_size:
+            img = resize_image(img, target_size)
+        images_resized.append(np.array(img.convert("RGB")).astype(np.float32))
+    
+    # Default weights: equal weight for all images
+    if blend_weights is None:
+        blend_weights = [1.0 / len(images)] * len(images)
+    
+    # Normalize weights
+    total_weight = sum(blend_weights)
+    blend_weights = [w / total_weight for w in blend_weights]
+    
+    # Blend images
+    blended = np.zeros_like(images_resized[0])
+    for img, weight in zip(images_resized, blend_weights):
+        blended += img * weight
+    
+    blended = np.clip(blended, 0, 255).astype(np.uint8)
+    return Image.fromarray(blended)
+
+
+def enhance_prompt_with_references(
+    base_prompt: str,
+    character_image: Optional[Image.Image] = None,
+    attire_image: Optional[Image.Image] = None,
+    background_image: Optional[Image.Image] = None,
+) -> str:
+    """Enhance a prompt with reference image descriptions."""
+    prompt_parts = [base_prompt]
+    
+    if character_image:
+        prompt_parts.append("matching character style and features")
+    
+    if attire_image:
+        prompt_parts.append("matching attire and clothing style")
+    
+    if background_image:
+        prompt_parts.append("matching background and setting")
+    
+    return ", ".join(prompt_parts)
