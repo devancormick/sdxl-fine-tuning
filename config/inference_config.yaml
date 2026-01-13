@@ -32,5 +32,5 @@ optimization:
   enable_cpu_offload: false  # Set to true if GPU memory is limited
   
 # Device
-device: "cuda"  # or "cpu"
+device: "cpu"  # or "cuda" (auto-detect: use "cpu" on macOS, "cuda" on Linux/Windows with GPU)
 

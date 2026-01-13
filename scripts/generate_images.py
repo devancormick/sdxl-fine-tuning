@@ -47,13 +47,17 @@ def main():
     
     # Initialize generator with model selection support
     print("Initializing image generator...")
+    device = config.get("device", "cuda")
+    # Use float32 for CPU (float16 not supported on CPU)
+    dtype = torch.float32 if device == "cpu" else torch.float16
+    
     generator = SDXLImageGenerator(
         base_model_path=args.base_model or model_config.get("base_model"),
         controlnet_model_path=model_config.get("controlnet_model"),
         lora_weights_path=args.lora_weights or model_config.get("lora_weights"),
         vae_path=model_config.get("vae_model"),
-        device=config.get("device", "cuda"),
-        dtype=torch.float16,
+        device=device,
+        dtype=dtype,
         enable_optimizations=True,
         model_config_path=args.model_config if Path(args.model_config).exists() else None,
         preferred_model=args.preferred_model,
