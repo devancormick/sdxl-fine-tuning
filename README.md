@@ -69,10 +69,16 @@ python scripts/download_models.py
 ```
 
 3. Prepare your training data:
-   - Place pose images in `data/poses/`
-   - Place attire images in `data/attire/`
-   - Place character images in `data/characters/`
-   - Place background images in `data/backgrounds/`
+   - **Option A**: Use the image fetching script to download free images:
+     ```bash
+     python scripts/fetch_images.py --category all --count 20
+     ```
+     See [FETCH_IMAGES_README.md](FETCH_IMAGES_README.md) for details.
+   - **Option B**: Manually place images:
+     - Place pose images in `data/poses/`
+     - Place attire images in `data/attire/`
+     - Place character images in `data/characters/`
+     - Place background images in `data/backgrounds/`
 
 ## Usage
 
